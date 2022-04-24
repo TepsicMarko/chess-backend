@@ -1,8 +1,18 @@
 import express from "express";
 import http from "http";
+import { nanoid } from "nanoid";
 import { Server } from "socket.io";
 import newGame from "./newGame";
-import { chessGame } from "./types";
+import { chessGame, position } from "./types";
+
+interface movePieceParams {
+  id: string;
+  newPosition: position;
+  selectedPiece: {
+    id: number;
+    position: position;
+  };
+}
 
 let games: { [key: string]: chessGame } = {};
 
@@ -20,7 +30,7 @@ io.on("connection", (socket) => {
 
   socket.on("create game", (data) => {
     console.log("create game");
-    const id = "123456";
+    const id = nanoid();
     games[id] = newGame;
     socket.emit("game created", { id, game: games[id] });
   });
@@ -30,6 +40,23 @@ io.on("connection", (socket) => {
     const id = data.id;
     games[id] = newGame;
     socket.emit("game joined", { id, game: games[id] });
+  });
+
+  socket.on("move piece", ({ id, selectedPiece, newPosition }: movePieceParams) => {
+    console.log("move piece");
+    const currentPosition = selectedPiece.position;
+    const newChessBoard = [...games[id]];
+
+    newChessBoard[newPosition.z][newPosition.x] = {
+      id: selectedPiece.id,
+      enemy: newChessBoard[currentPosition.z][currentPosition.x]?.enemy || false,
+      moved: true,
+    };
+    newChessBoard[currentPosition.z][currentPosition.x] = null;
+
+    games[id] = newChessBoard;
+
+    io.emit("piece moved", { game: games[id] });
   });
 });
 

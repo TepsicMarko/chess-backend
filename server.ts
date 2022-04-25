@@ -14,7 +14,13 @@ interface movePieceParams {
   };
 }
 
-let games: { [key: string]: chessGame } = {};
+interface gameInfo {
+  state: chessGame;
+  owner: string;
+}
+
+let games: { [key: string]: gameInfo } = {};
+games = {};
 
 const port = 3001;
 const app = express();
@@ -28,35 +34,39 @@ const io = new Server(httpServer, {
 io.on("connection", (socket) => {
   console.log("a user connected");
 
-  socket.on("create game", (data) => {
+  socket.on("create game", ({ username, color }) => {
     console.log("create game");
     const id = nanoid();
-    games[id] = newGame;
+    games[id] = { state: newGame(username, color), owner: username };
     socket.emit("game created", { id, game: games[id] });
   });
 
-  socket.on("join game", (data) => {
+  socket.on("join game", ({ id, username }) => {
     console.log("join game");
-    const id = data.id;
-    games[id] = newGame;
+    games[id].state = games[id].state.map((el) =>
+      el.map((piece) =>
+        piece ? (!piece.owner ? { ...piece, owner: username } : piece) : piece
+      )
+    );
     socket.emit("game joined", { id, game: games[id] });
   });
 
   socket.on("move piece", ({ id, selectedPiece, newPosition }: movePieceParams) => {
     console.log("move piece");
     const currentPosition = selectedPiece.position;
-    const newChessBoard = [...games[id]];
+    const newChessBoard = [...games[id].state];
 
     newChessBoard[newPosition.z][newPosition.x] = {
       id: selectedPiece.id,
-      enemy: newChessBoard[currentPosition.z][currentPosition.x]?.enemy || false,
+      owner: newChessBoard[currentPosition.z][currentPosition.x]?.owner || "",
       moved: true,
+      color: newChessBoard[currentPosition.z][currentPosition.x]?.color || "",
     };
     newChessBoard[currentPosition.z][currentPosition.x] = null;
 
-    games[id] = newChessBoard;
+    games[id].state = newChessBoard;
 
-    io.emit("piece moved", { game: games[id] });
+    io.emit("piece moved", games[id]);
   });
 });
 

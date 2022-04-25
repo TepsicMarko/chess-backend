@@ -1,7 +1,8 @@
 interface chessPieceInfo {
   id: number;
-  enemy: boolean;
+  owner: string;
   moved: boolean;
+  color: string;
 }
 
 export interface position {

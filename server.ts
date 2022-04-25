@@ -17,6 +17,8 @@ interface movePieceParams {
 interface gameInfo {
   state: chessGame;
   owner: string;
+  guest: string;
+  nextTurn: string;
 }
 
 let games: { [key: string]: gameInfo } = {};
@@ -37,7 +39,12 @@ io.on("connection", (socket) => {
   socket.on("create game", ({ username, color }) => {
     console.log("create game");
     const id = nanoid();
-    games[id] = { state: newGame(username, color), owner: username };
+    games[id] = {
+      state: newGame(username, color),
+      owner: username,
+      nextTurn: username,
+      guest: "",
+    };
     socket.emit("game created", { id, game: games[id] });
   });
 
@@ -48,6 +55,7 @@ io.on("connection", (socket) => {
         piece ? (!piece.owner ? { ...piece, owner: username } : piece) : piece
       )
     );
+    games[id].guest = username;
     socket.emit("game joined", { id, game: games[id] });
   });
 
@@ -65,6 +73,8 @@ io.on("connection", (socket) => {
     newChessBoard[currentPosition.z][currentPosition.x] = null;
 
     games[id].state = newChessBoard;
+    games[id].nextTurn =
+      games[id].nextTurn === games[id].owner ? games[id].guest : games[id].owner;
 
     io.emit("piece moved", games[id]);
   });

@@ -24,12 +24,13 @@ interface gameInfo {
 let games: { [key: string]: gameInfo } = {};
 games = {};
 
-const port = 3001;
+const port = process.env.PORT || 3001;
 const app = express();
 const httpServer = http.createServer(app);
+
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: ["http://localhost:3000", "https://3d-chess.vercel.app"],
   },
 });
 

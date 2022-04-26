@@ -45,6 +45,7 @@ io.on("connection", (socket) => {
       nextTurn: username,
       guest: "",
     };
+    socket.join(id);
     socket.emit("game created", { id, game: games[id] });
   });
 
@@ -56,6 +57,7 @@ io.on("connection", (socket) => {
       )
     );
     games[id].guest = username;
+    socket.join(id);
     socket.emit("game joined", { id, game: games[id] });
   });
 
@@ -76,7 +78,7 @@ io.on("connection", (socket) => {
     games[id].nextTurn =
       games[id].nextTurn === games[id].owner ? games[id].guest : games[id].owner;
 
-    io.emit("piece moved", games[id]);
+    io.to(id).emit("piece moved", games[id]);
   });
 });
 

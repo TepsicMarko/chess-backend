@@ -6,7 +6,7 @@ import newGame from "./newGame";
 import { chessGame, position } from "./types";
 
 interface movePieceParams {
-  id: string;
+  gameId: string;
   newPosition: position;
   selectedPiece: {
     id: number;
@@ -30,7 +30,11 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: ["http://localhost:3000", "https://3d-chess.vercel.app"],
+    origin: [
+      "http://localhost:3000",
+      "http://192.168.8.21:3000",
+      "https://3d-chess.vercel.app",
+    ],
   },
 });
 
@@ -39,33 +43,33 @@ io.on("connection", (socket) => {
 
   socket.on("create game", ({ username, color }) => {
     console.log("create game");
-    const id = nanoid();
-    games[id] = {
+    const gameId = nanoid();
+    games[gameId] = {
       state: newGame(username, color),
       owner: username,
       nextTurn: username,
       guest: "",
     };
-    socket.join(id);
-    socket.emit("game created", { id, game: games[id] });
+    socket.join(gameId);
+    socket.emit("game created", { gameId, game: games[gameId] });
   });
 
-  socket.on("join game", ({ id, username }) => {
+  socket.on("join game", ({ gameId, username }) => {
     console.log("join game");
-    games[id].state = games[id].state.map((el) =>
+    games[gameId].state = games[gameId].state.map((el) =>
       el.map((piece) =>
         piece ? (!piece.owner ? { ...piece, owner: username } : piece) : piece
       )
     );
-    games[id].guest = username;
-    socket.join(id);
-    socket.emit("game joined", { id, game: games[id] });
+    games[gameId].guest = username;
+    socket.join(gameId);
+    socket.emit("game joined", { gameId, game: games[gameId] });
   });
 
-  socket.on("move piece", ({ id, selectedPiece, newPosition }: movePieceParams) => {
+  socket.on("move piece", ({ gameId, selectedPiece, newPosition }: movePieceParams) => {
     console.log("move piece");
     const currentPosition = selectedPiece.position;
-    const newChessBoard = [...games[id].state];
+    const newChessBoard = [...games[gameId].state];
 
     newChessBoard[newPosition.z][newPosition.x] = {
       id: selectedPiece.id,
@@ -75,11 +79,22 @@ io.on("connection", (socket) => {
     };
     newChessBoard[currentPosition.z][currentPosition.x] = null;
 
-    games[id].state = newChessBoard;
-    games[id].nextTurn =
-      games[id].nextTurn === games[id].owner ? games[id].guest : games[id].owner;
+    games[gameId].state = newChessBoard;
+    games[gameId].nextTurn =
+      games[gameId].nextTurn === games[gameId].owner
+        ? games[gameId].guest
+        : games[gameId].owner;
 
-    io.to(id).emit("piece moved", games[id]);
+    io.to(gameId).emit("piece moved", games[gameId]);
+  });
+
+  socket.on("promote pawn", ({ gameId, from, to }) => {
+    const game = [...games[gameId].state];
+
+    game[from.z][from.x]!.id = to;
+
+    games[gameId].state = game;
+    io.to(gameId).emit("pawn promoted", games[gameId]);
   });
 });
 

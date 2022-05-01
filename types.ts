@@ -1,4 +1,5 @@
 interface chessPieceInfo {
+  uuid: string;
   id: number;
   owner: string;
   moved: boolean;

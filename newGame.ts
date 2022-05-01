@@ -1,6 +1,7 @@
+import { nanoid } from "nanoid";
 import { chessGame } from "./types";
 
-const newGame = (username: string, color: string) => {
+const newGame = (username: string, color: string): chessGame => {
   const formations = [
     ["23456432", "11111111"],
     ["11111111", "23465432"],
@@ -12,6 +13,7 @@ const newGame = (username: string, color: string) => {
       newGame = [
         ...formations[0].map((formation) =>
           [...formation].map((piece) => ({
+            uuid: nanoid(),
             id: parseInt(piece),
             owner: username,
             moved: false,
@@ -24,6 +26,7 @@ const newGame = (username: string, color: string) => {
         ...newGame,
         ...formations[1].map((formation) =>
           [...formation].map((piece) => ({
+            uuid: nanoid(),
             id: parseInt(piece),
             owner: "",
             moved: false,

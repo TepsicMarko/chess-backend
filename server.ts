@@ -70,13 +70,14 @@ io.on("connection", (socket) => {
     console.log("move piece");
     const currentPosition = selectedPiece.position;
     const newChessBoard = [...games[gameId].state];
+    const selectedPieceData = newChessBoard[currentPosition.z][currentPosition.x];
 
-    newChessBoard[newPosition.z][newPosition.x] = {
-      id: selectedPiece.id,
-      owner: newChessBoard[currentPosition.z][currentPosition.x]?.owner || "",
-      moved: true,
-      color: newChessBoard[currentPosition.z][currentPosition.x]?.color || "",
-    };
+    selectedPieceData &&
+      (newChessBoard[newPosition.z][newPosition.x] = {
+        ...selectedPieceData,
+        id: selectedPiece.id,
+        moved: true,
+      });
     newChessBoard[currentPosition.z][currentPosition.x] = null;
 
     games[gameId].state = newChessBoard;

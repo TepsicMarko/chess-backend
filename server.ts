@@ -17,6 +17,7 @@ interface movePieceParams {
 interface gameInfo {
   state: chessGame;
   owner: string;
+  ownerColor: string;
   guest: string;
   nextTurn: string;
 }
@@ -44,26 +45,62 @@ io.on("connection", (socket) => {
   socket.on("create game", ({ username, color }) => {
     console.log("create game");
     const gameId = nanoid();
+
     games[gameId] = {
-      state: newGame(username, color),
+      state: [[]],
       owner: username,
+      ownerColor: color,
       nextTurn: username,
       guest: "",
     };
+
     socket.join(gameId);
-    socket.emit("game created", { gameId, game: games[gameId] });
+    socket.emit("join lobby", { gameId, lobby: { owner: username, guest: "" } });
   });
 
   socket.on("join game", ({ gameId, username }) => {
     console.log("join game");
-    games[gameId].state = games[gameId].state.map((el) =>
-      el.map((piece) =>
-        piece ? (!piece.owner ? { ...piece, owner: username } : piece) : piece
-      )
-    );
+    const color = games[gameId].ownerColor === "white" ? "rgb(50, 50, 50)" : "white";
+
     games[gameId].guest = username;
+
     socket.join(gameId);
-    socket.emit("game joined", { gameId, game: games[gameId] });
+    socket.emit("join lobby", { gameId, username, color });
+  });
+
+  socket.on("add user to loby", ({ gameId, username }) => {
+    console.log("add user to loby");
+    const isOwner = games[gameId].owner === username;
+
+    if (!isOwner) {
+      io.to(gameId).emit("guest joined lobby", {
+        owner: games[gameId].owner,
+        guest: username,
+      });
+    }
+  });
+
+  socket.on("leave lobby", ({ gameId, username }) => {
+    const isOwner = games[gameId].owner === username;
+
+    if (!isOwner) {
+      io.to(gameId).emit("guest left lobby", {
+        owner: games[gameId].owner,
+        guest: "",
+      });
+    } else {
+      io.to(gameId).emit("owner left lobby");
+      delete games[gameId];
+    }
+  });
+
+  socket.on("start game", ({ gameId }) => {
+    console.log("start game");
+    const { owner, guest, ownerColor } = games[gameId];
+
+    games[gameId].state = newGame(owner, guest, ownerColor);
+
+    io.to(gameId).emit("game started", { gameId, game: games[gameId] });
   });
 
   socket.on("move piece", ({ gameId, selectedPiece, newPosition }: movePieceParams) => {

@@ -60,12 +60,14 @@ io.on("connection", (socket) => {
 
   socket.on("join game", ({ gameId, username }) => {
     console.log("join game");
-    const color = games[gameId].ownerColor === "white" ? "rgb(50, 50, 50)" : "white";
+    if (games[gameId]) {
+      const color = games[gameId].ownerColor === "white" ? "rgb(50, 50, 50)" : "white";
 
-    games[gameId].guest = username;
+      games[gameId].guest = username;
 
-    socket.join(gameId);
-    socket.emit("join lobby", { gameId, username, color });
+      socket.join(gameId);
+      socket.emit("join lobby", { gameId, username, color });
+    } else socket.emit("join error", { message: "Game doesn't exists" });
   });
 
   socket.on("add user to loby", ({ gameId, username }) => {
@@ -81,16 +83,18 @@ io.on("connection", (socket) => {
   });
 
   socket.on("leave lobby", ({ gameId, username }) => {
-    const isOwner = games[gameId].owner === username;
+    if (games[gameId]) {
+      const isOwner = games[gameId].owner === username;
 
-    if (!isOwner) {
-      io.to(gameId).emit("guest left lobby", {
-        owner: games[gameId].owner,
-        guest: "",
-      });
-    } else {
-      io.to(gameId).emit("owner left lobby");
-      delete games[gameId];
+      if (!isOwner) {
+        io.to(gameId).emit("guest left lobby", {
+          owner: games[gameId].owner,
+          guest: "",
+        });
+      } else {
+        io.to(gameId).emit("owner left lobby");
+        delete games[gameId];
+      }
     }
   });
 

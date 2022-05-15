@@ -40,6 +40,7 @@ const io = new Server(httpServer, {
 });
 
 io.on("connection", (socket) => {
+  let userId: string;
   console.log("a user connected");
 
   socket.on("create game", ({ username, color }) => {
@@ -54,6 +55,9 @@ io.on("connection", (socket) => {
       guest: "",
     };
 
+    console.log("connected to room", gameId);
+
+    !userId && (userId = username);
     socket.join(gameId);
     socket.emit("join lobby", { gameId, lobby: { owner: username, guest: "" } });
   });
@@ -65,21 +69,52 @@ io.on("connection", (socket) => {
 
       games[gameId].guest = username;
 
+      !userId && (userId = username);
       socket.join(gameId);
       socket.emit("join lobby", { gameId, username, color });
     } else socket.emit("join error", { message: "Game doesn't exists" });
   });
 
-  socket.on("add user to loby", ({ gameId, username }) => {
-    console.log("add user to loby");
-    const isOwner = games[gameId].owner === username;
+  socket.on("rejoin game", ({ gameId, username }) => {
+    console.log("rejoin game");
+    if (games[gameId]) {
+      const isOwner = games[gameId].owner === username;
+      const color = games[gameId].ownerColor === "white" ? "rgb(50, 50, 50)" : "white";
 
-    if (!isOwner) {
-      io.to(gameId).emit("guest joined lobby", {
-        owner: games[gameId].owner,
-        guest: username,
-      });
+      socket.join(gameId);
+      !userId && (userId = username);
+
+      if (isOwner) {
+        socket.emit("join lobby", {
+          gameId,
+          username,
+          color: games[gameId].ownerColor,
+          isOwner,
+        });
+        io.to(gameId).emit("owner rejoined game", { gameId });
+      } else {
+        socket.emit("join lobby", { gameId, username, color, isOwner });
+        io.to(gameId).emit("guest rejoined game", { gameId });
+      }
+    } else socket.emit("join error", { message: "Game doesn't exists" });
+  });
+
+  socket.on("resume game", ({ gameId }) => {
+    console.log("resume game");
+    if (games[gameId]) {
+      io.to(gameId).emit("game resumed", { gameId, game: games[gameId] });
+    } else {
+      socket.emit("resume error", { message: "Game doesn't exists" });
     }
+  });
+
+  socket.on("add user to loby", ({ gameId }) => {
+    console.log("add user to loby");
+
+    io.to(gameId).emit("user joined lobby", {
+      owner: games[gameId].owner,
+      guest: games[gameId].guest,
+    });
   });
 
   socket.on("leave lobby", ({ gameId, username }) => {
@@ -137,6 +172,23 @@ io.on("connection", (socket) => {
 
     games[gameId].state = game;
     io.to(gameId).emit("pawn promoted", games[gameId]);
+  });
+
+  socket.on("disconnecting", () => {
+    const gameId = [...socket.rooms][1];
+
+    if (games[gameId]) {
+      console.log(games[gameId].owner, userId);
+      if (games[gameId].owner === userId) {
+        io.to(gameId).emit("owner disconnected");
+      } else io.to(gameId).emit("guest disconnected");
+    } else {
+      console.error("disconnecting from unknown room");
+    }
+  });
+
+  socket.on("disconnect", (e) => {
+    console.log("user disconnected", e);
   });
 });
 

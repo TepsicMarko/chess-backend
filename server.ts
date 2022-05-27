@@ -79,6 +79,7 @@ io.on("connection", (socket) => {
     console.log("rejoin game");
     if (games[gameId]) {
       const isOwner = games[gameId].owner === username;
+      const isGuest = games[gameId].guest === username;
       const color = games[gameId].ownerColor === "white" ? "rgb(50, 50, 50)" : "white";
 
       socket.join(gameId);
@@ -92,9 +93,11 @@ io.on("connection", (socket) => {
           isOwner,
         });
         io.to(gameId).emit("owner rejoined game", { gameId });
-      } else {
+      } else if (isGuest) {
         socket.emit("join lobby", { gameId, username, color, isOwner });
         io.to(gameId).emit("guest rejoined game", { gameId });
+      } else {
+        socket.emit("join error", { message: "You are not part of this game" });
       }
     } else socket.emit("join error", { message: "Game doesn't exists" });
   });
